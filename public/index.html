@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tablet Recognition System</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h2>Drug Interaction Detection System</h2>
+  
+  <form id="uploadForm" enctype="multipart/form-data">
+    <div class="upload-section">
+      <label class="upload-box">
+        <div class="preview" id="preview1">
+          <span>📷</span>
+          <img id="img1" alt="Tablet 1">
+        </div>
+        <input type="file" name="image1" accept="image/*" capture="environment" id="imageInput1">
+      </label>
+
+      <label class="upload-box">
+        <div class="preview" id="preview2">
+          <span>📷</span>
+          <img id="img2" alt="Tablet 2">
+        </div>
+        <input type="file" name="image2" accept="image/*" capture="environment" id="imageInput2">
+      </label>
+    </div>
+    <button type="submit">Recognize Interaction</button>
+  </form>
+
+  <div class="info-card" id="tabletInfo">
+    <h3>Interaction Information</h3>
+    <div id="result">
+      Interaction details will appear here...
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
