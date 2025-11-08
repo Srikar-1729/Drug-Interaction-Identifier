@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { extractDrugs } from './drugExtractor.js'; // Import the new module
 import { fetchAllInteractions } from '../utils/openfda.js';
+import { getInteractionBetweenDrugs } from '../utils/drugInteractionsDb.js';
 import { summarizeInteractions } from '../utils/summarizer.js';
 export const extractText = (req, res) => {
   try {
@@ -32,44 +33,75 @@ export const extractText = (req, res) => {
           const ocrResults = data.results;
           // console.log(ocrResults);
           // Iterate over OCR results (array of objects)
-          const tabletsWithDrugs = ocrResults.map((item) => {
-            // Join all text lines into a single string for matching
-            const fullText = item.text.join(' ').toLowerCase();
-            
-            return {
-              image: item.image,
-              text: item.text,
-              detected_drugs: extractDrugs(fullText)
-            };
-          });
+          const tabletsWithDrugs = await Promise.all(
+            ocrResults.map(async (item) => {
+              // Join all text lines into a single string for matching
+              const fullText = item.text.join(' ');
+
+              const detectedDrugs = await extractDrugs(fullText);
+
+              return {
+                image: item.image,
+                text: item.text,
+                detected_drugs: detectedDrugs
+              };
+            })
+          );
 
          
           const tabletsWithInteractions = await fetchAllInteractions(tabletsWithDrugs);
           console.log(tabletsWithDrugs);
           console.log(tabletsWithInteractions);
-         
-  if (tabletsWithInteractions.length >= 2) {
-  const tablet1 = {
-    brand_name: tabletsWithInteractions[0].detected_drugs[0]?.brand_name || "N/A",
-    generic_name: tabletsWithInteractions[0].detected_drugs[0]?.generic_name || "N/A",
-    drug_interactions: tabletsWithInteractions[0].detected_drugs[0]?.interactions || "No known interactions"
-  };
 
-  const tablet2 = {
-    brand_name: tabletsWithInteractions[1].detected_drugs[0]?.brand_name || "N/A",
-    generic_name: tabletsWithInteractions[1].detected_drugs[0]?.generic_name || "N/A",
-    drug_interactions: tabletsWithInteractions[1].detected_drugs[0]?.interactions || "No known interactions"
-  };
+          const tabletsWithDetections = tabletsWithInteractions.filter(
+            (tablet) => tablet.detected_drugs?.length
+          );
 
-  // console.log(tablet1, tablet2);
-  const summary = await summarizeInteractions(tablet1, tablet2);
+          if (tabletsWithDetections.length >= 2) {
+            const primaryDrugA = tabletsWithDetections[0].detected_drugs[0] || {};
+            const primaryDrugB = tabletsWithDetections[1].detected_drugs[0] || {};
 
+            let dbInteraction = null;
 
-  
-  res.json({ summary });
-} else {
-  res.status(400).json({ error: "Less than two tablets detected" });
-}
+            if (primaryDrugA.name && primaryDrugB.name) {
+              dbInteraction = await getInteractionBetweenDrugs(
+                primaryDrugA.name,
+                primaryDrugB.name
+              );
+            }
+
+            const toTabletPayload = (tablet, counterpartName) => {
+              const primaryDrug = tablet.detected_drugs[0] || {};
+              return {
+                name: primaryDrug.name || "N/A",
+                drugbank_id: primaryDrug.drugbank_id || "N/A",
+                openfda_interaction: primaryDrug.openfda_interaction || null,
+                database_interaction: dbInteraction,
+                counterpart_name: counterpartName || "N/A"
+              };
+            };
+
+            const tablet1 = toTabletPayload(
+              tabletsWithDetections[0],
+              primaryDrugB.name
+            );
+            const tablet2 = toTabletPayload(
+              tabletsWithDetections[1],
+              primaryDrugA.name
+            );
+
+            // console.log(tablet1, tablet2);
+            const healthDetails = req.body.healthDetails || null;
+            const summary = await summarizeInteractions(tablet1, tablet2, healthDetails);
+
+            res.json({ 
+              summary,
+              tablet1Name: tablet1.name,
+              tablet2Name: tablet2.name
+            });
+          } else {
+            res.status(400).json({ error: "Less than two tablets detected" });
+          }
 
 
 

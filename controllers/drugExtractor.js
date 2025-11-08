@@ -1,37 +1,63 @@
-import fs from 'fs';
-import path from 'path';
-
-const referencePath = path.join(process.cwd(), 'drug_reference_list.json');
-const referenceList = JSON.parse(fs.readFileSync(referencePath, 'utf-8'));
+import pool from '../db/client.js';
 
 /**
- * Extracts drugs from OCR text
+ * Extracts drugs from OCR text and validates against the database
  * @param {string} ocrText - Text extracted from OCR
- * @returns {Array} - List of detected drugs with brand and generic names
+ * @returns {Promise<Array>} - List of detected drugs with name and drugbank_id
  */
-export const extractDrugs = (ocrText) => {
+export const extractDrugs = async (ocrText) => {
   if (!ocrText) return [];
 
-  const detectedDrugs = [];
-
   // Normalize OCR text
-  const normalizedText = ocrText.toLowerCase().replace(/[^a-z0-9\s\-]/gi, ' ');
-  // const normalizedWords = normalizedText.split(/\s+/).filter(Boolean);
-  // console.log(normalizedWords);
-  referenceList.forEach((drug) => {
-    const brand = drug.brand_name?.toLowerCase();
-    const generic = drug.generic_name?.toLowerCase();
-    
-    if (brand && normalizedText.includes(brand)) {
-      detectedDrugs.push({ brand_name: drug.brand_name, generic_name: drug.generic_name });
-    } else if (generic && normalizedText.includes(generic)) {
-      detectedDrugs.push({ brand_name: drug.brand_name, generic_name: drug.generic_name });
+  const normalizedText = ocrText
+    .toLowerCase()
+    .replace(/[^a-z0-9\s\-]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalizedText) {
+    return [];
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `
+        SELECT drug_name, drugbank_id
+        FROM drugs
+        WHERE drug_name IS NOT NULL
+          AND POSITION(LOWER(drug_name) IN $1) > 0
+      `,
+      [normalizedText]
+    );
+
+    if (!rows.length) {
+      return [];
     }
-  });
 
+    const uniqueById = new Map();
 
-  // Remove duplicates
-  const uniqueDrugs = Array.from(new Map(detectedDrugs.map(d => [d.generic_name, d])).values());
+    rows.forEach((row) => {
+      if (!row.drug_name) {
+        return;
+      }
 
-  return uniqueDrugs;
+      const name = row.drug_name.trim();
+      if (!name) {
+        return;
+      }
+
+      const key = row.drugbank_id || name.toLowerCase();
+      if (!uniqueById.has(key)) {
+        uniqueById.set(key, {
+          name,
+          drugbank_id: row.drugbank_id || null
+        });
+      }
+    });
+
+    return Array.from(uniqueById.values());
+  } catch (error) {
+    console.error('Failed to validate drugs against the database:', error);
+    return [];
+  }
 };

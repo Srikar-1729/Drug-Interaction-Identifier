@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Theme Toggle Button -->
+  <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+    <span id="themeIcon">🌙</span>
+  </button>
+
   <h2>Drug Interaction Detection System</h2>
   
   <form id="uploadForm" enctype="multipart/form-data">
@@ -17,6 +22,10 @@
           <img id="img1" alt="Tablet 1">
         </div>
         <input type="file" name="image1" accept="image/*" capture="environment" id="imageInput1">
+        <div class="drug-name-field" id="drugName1" style="display: none;">
+          <span class="drug-name-label">Drug Name:</span>
+          <span class="drug-name-value" id="drugNameValue1"></span>
+        </div>
       </label>
 
       <label class="upload-box">
@@ -25,10 +34,40 @@
           <img id="img2" alt="Tablet 2">
         </div>
         <input type="file" name="image2" accept="image/*" capture="environment" id="imageInput2">
+        <div class="drug-name-field" id="drugName2" style="display: none;">
+          <span class="drug-name-label">Drug Name:</span>
+          <span class="drug-name-value" id="drugNameValue2"></span>
+        </div>
       </label>
     </div>
-    <button type="submit">Recognize Interaction</button>
+    <div class="personalization-option">
+      <label class="checkbox-label">
+        <input type="checkbox" id="personalizeCheckbox">
+        <span>Get personalized summary based on my health details</span>
+      </label>
+    </div>
+    <div class="action-buttons">
+      <button type="submit" class="primary-button">Recognize Interaction</button>
+      <button type="button" id="reloadButton" class="reload-button" aria-label="Reload page">⟳</button>
+    </div>
   </form>
+
+  <!-- Health Details Modal -->
+  <div class="modal-overlay" id="healthModal" style="display: none;">
+    <div class="modal-content">
+      <h3>Enter Your Health Details</h3>
+      <p class="modal-description">Provide information about your health conditions, allergies, or other medications to get a personalized interaction summary.</p>
+      <textarea 
+        id="healthDetailsInput" 
+        placeholder="e.g., I have high blood pressure, diabetes, and I'm allergic to penicillin..."
+        rows="6"
+      ></textarea>
+      <div class="modal-buttons">
+        <button type="button" id="submitHealthDetails" class="primary-button">Submit</button>
+        <button type="button" id="cancelHealthDetails" class="secondary-button">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <div class="info-card" id="tabletInfo">
     <h3>Interaction Information</h3>

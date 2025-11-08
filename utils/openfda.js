@@ -1,8 +1,13 @@
 import axios from 'axios';
 
-export const getDrugInteractions = async (genericName) => {
+export const getDrugInteractions = async (drugName) => {
   try {
-    const url = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${encodeURIComponent(genericName)}"+openfda.brand_name:"${encodeURIComponent(genericName)}"&limit=1`;
+    if (!drugName) {
+      return 'No known interactions';
+    }
+
+    const encodedName = encodeURIComponent(drugName);
+    const url = `https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${encodedName}"+openfda.brand_name:"${encodedName}"&limit=1`;
     const response = await axios.get(url);
 
     if (response.data.results?.length > 0) {
@@ -11,7 +16,7 @@ export const getDrugInteractions = async (genericName) => {
     }
     return 'No known interactions';
   } catch (err) {
-    console.error(`Error fetching interactions for ${genericName}:`, err.message);
+    console.error(`Error fetching interactions for ${drugName}:`, err.message);
     return 'No known interactions';
   }
 };
@@ -20,7 +25,7 @@ export const fetchAllInteractions = async (tabletsWithDrugs) => {
   return Promise.all(tabletsWithDrugs.map(async (tablet) => {
     tablet.detected_drugs = await Promise.all(
       tablet.detected_drugs.map(async (drug) => {
-        drug.interactions = await getDrugInteractions(drug.generic_name);
+        drug.openfda_interaction = await getDrugInteractions(drug.name);
         return drug;
       })
     );
